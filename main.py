@@ -1,7 +1,8 @@
-import sys
-import os
-import shutil
-import subprocess
+import vpk
+from sys import argv, exit
+from os import path, remove, rename, makedirs
+from shutil import copy
+from subprocess import run, CalledProcessError
 from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout,QHBoxLayout, QFileDialog, QLineEdit, QLabel, QProgressBar
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt
@@ -55,7 +56,7 @@ class FileDialogApp(QWidget):
         self.layout.addWidget(self.progress_bar)
 
         self.image_label = QLabel(self)
-        pixmap = QPixmap(os.path.join(os.path.dirname(sys.argv[0]), "img01.png"))
+        pixmap = QPixmap(path.join(path.dirname(argv[0]), "img01.png"))
         pixmap = pixmap.scaled(510, 200, Qt.AspectRatioMode.KeepAspectRatio)
         self.image_label.setPixmap(pixmap)
         self.layout.addWidget(self.image_label)
@@ -78,14 +79,14 @@ class FileDialogApp(QWidget):
             self.folder_path.setText(folder_name)
 
     def rename_and_move_file(self, directory):
-        original_file = os.path.join(directory, "pak01_dir.vpk")
+        original_file = path.join(directory, "pak01_dir.vpk")
 
-        if os.path.exists(original_file):
-            renamed_file = os.path.join(directory, "pak01_000.vpk")
+        if path.exists(original_file):
+            renamed_file = path.join(directory, "pak01_000.vpk")
 
             try:
-                os.remove(os.path.join(directory, "pak01_000.vpk"))
-                os.rename(original_file, renamed_file)
+                remove(path.join(directory, "pak01_000.vpk"))
+                rename(original_file, renamed_file)
             except Exception as e:
                 print(e)
                 return
@@ -112,12 +113,12 @@ class FileDialogApp(QWidget):
         if not video_file or not output_folder:
             return
 
-        file_extension = os.path.splitext(video_file)[1].lower()
+        file_extension = path.splitext(video_file)[1].lower()
         self.update_progress(20)
         if file_extension == ".webm":
-            new_location = os.path.join(output_folder, '123.webm')
+            new_location = path.join(output_folder, '123.webm')
             try:
-                shutil.copy(video_file, new_location)
+                copy(video_file, new_location)
                 print(f"Файл перемещен в папку: {new_location}")
                 self.remove_audio_from_video(new_location, new_location)
                 print(f"Аудио удалено из файла: {new_location}")
@@ -126,20 +127,16 @@ class FileDialogApp(QWidget):
                 return
         else:
             try:
-                output_webm = os.path.join(output_folder, "123.webm")
+                output_webm = path.join(output_folder, "123.webm")
                 video = VideoFileClip(video_file)
                 video.write_videofile(output_webm, codec="libvpx-vp9",audio=False, bitrate="2M", fps=30)
                 print(f"Конвертация завершена: {output_webm}")
             except Exception as e:
                 return
-        try:
-            vpk_command = f"vpk.exe pak01_dir"
-            subprocess.run(vpk_command, check=True, shell=True)
-            print(f"Команда выполнена: {vpk_command}")
-        except subprocess.CalledProcessError as e:
-            return
-        self.update_progress(80)
 
+        newpak = vpk.new("./pak01_dir")
+        newpak.save("pak01_dir.vpk")
+        pak = newpak.save_and_open("pak01_dir.vpk")
 
         destination_folder = self.folder_path.text()
         if not destination_folder:
@@ -151,23 +148,23 @@ class FileDialogApp(QWidget):
             self.rename_and_move_file(destination_folder)
 
 
-        if not os.path.exists(destination_folder):
+        if not path.exists(destination_folder):
             try:
-                os.makedirs(destination_folder)
+                makedirs(destination_folder)
                 print(f"Папка {destination_folder} была создана.")
             except Exception as e:
                 return
 
-        program_dir = os.path.dirname(sys.argv[0])
+        program_dir = path.dirname(argv[0])
         vpk_files = ["pak01_dir.vpk", "pak02_dir.vpk"]
 
         for vpk_filename in vpk_files:
-            vpk_file = os.path.join(program_dir, vpk_filename)
+            vpk_file = path.join(program_dir, vpk_filename)
 
-            if os.path.exists(vpk_file):
+            if path.exists(vpk_file):
                 try:
-                    destination_path = os.path.join(destination_folder, vpk_filename)
-                    shutil.copy(vpk_file, destination_path)
+                    destination_path = path.join(destination_folder, vpk_filename)
+                    copy(vpk_file, destination_path)
                     print(f"Файл {vpk_filename} перемещен в папку: {destination_path}")
                 except Exception as e:
                     return
@@ -176,8 +173,8 @@ class FileDialogApp(QWidget):
                 return
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
+    app = QApplication(argv)
     window = FileDialogApp()
     window.show()
-    sys.exit(app.exec())
+    exit(app.exec())
 
